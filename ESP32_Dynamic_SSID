@@ -1,0 +1,86 @@
+#include <ArduinoJson.h>
+#include "FS.h"
+#include "SPIFFS.h"
+
+#define SENSORDATA_JSON_SIZE (JSON_OBJECT_SIZE(3))
+
+struct WifiConfiguration {
+   const char* ssid;
+   const char* pass;
+};
+
+WifiConfiguration wifi;
+WifiConfiguration loaded_wifi;
+
+bool LoadConfig(WifiConfiguration& load_wifi, const char* path) {
+  //  --------------------------- Read Data
+  
+  
+  Serial.println(F("Read Data"));
+
+  if (!SPIFFS.begin()) return false;
+  
+  File configFile = SPIFFS.open(path, "r");
+  size_t size = configFile.size();
+  
+  std::unique_ptr<char[]> buf(new char[size]);
+  configFile.readBytes(buf.get(), size);
+  
+  StaticJsonBuffer<512> ReadFile;
+  JsonObject& data = ReadFile.parseObject(buf.get());
+  
+  load_wifi.ssid = data["ssid"];
+  load_wifi.pass = data["pass"];
+
+//  Check Data
+
+//  Serial.println(load_wifi.ssid);
+//  Serial.println(load_wifi.pass);
+
+//  data.printTo(Serial);
+//  data["ssid"].printTo(Serial);
+//  data["pass"].printTo(Serial);
+
+  return data.success();
+}
+
+void SaveConfig(const WifiConfiguration& data, const char * path)
+{
+
+  //  --------------------------- Write Data
+  Serial.println(F("Write Data"));
+
+  File newConfigFile = SPIFFS.open(path, "w");
+  
+  StaticJsonBuffer<SENSORDATA_JSON_SIZE> jsonBuffer;
+  JsonObject& root = jsonBuffer.createObject();
+  root["ssid"] = data.ssid;
+  root["pass"] = data.pass;
+  
+  root.printTo(newConfigFile);
+}
+
+
+void setup() {
+  Serial.begin(115200);
+  SPIFFS.begin();
+  Serial.println(F("\nProgram Started"));
+
+  // Writing new data
+  wifi.ssid = "hotspot";
+  wifi.pass = "password";
+  
+  SaveConfig(wifi,"/config.json");
+
+  // Loading new data
+  LoadConfig(loaded_wifi,"/config.json") ? Serial.println("Success") : Serial.println("Error");
+
+  Serial.println(loaded_wifi.ssid);
+  Serial.println(loaded_wifi.pass);
+  Serial.println("===========");
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  
+}
